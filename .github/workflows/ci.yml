@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database:
+    name: Migrations, tests, lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase
+        # Applies every migration in supabase/migrations in order, then seed.sql.
+        # A migration that does not apply cleanly fails the build here.
+        run: supabase start
+
+      - name: Verify migrations are reproducible from scratch
+        # Rebuilds the database on the shadow instance. Catches migrations that
+        # only work against an already-migrated database.
+        run: supabase db reset
+
+      - name: Run pgTAP tests
+        run: supabase test db
+
+      - name: Lint database schema
+        run: supabase db lint --level warning --fail-on warning
+
+      - name: Detect uncommitted schema drift
+        # The checked-in migrations must fully describe the database. If diffing
+        # the live schema against the migrations produces output, someone changed
+        # the database without writing a migration.
+        run: |
+          supabase db diff --schema public > /tmp/drift.sql
+          if [ -s /tmp/drift.sql ]; then
+            echo "::error::Schema drift detected - a change was made without a migration."
+            cat /tmp/drift.sql
+            exit 1
+          fi
+          echo "No drift."
+
+      - name: Generate types and check they are committed
+        run: |
+          supabase gen types typescript --local --schema public > /tmp/database.types.ts
+          if ! diff -q /tmp/database.types.ts types/database.types.ts > /dev/null 2>&1; then
+            echo "::error::types/database.types.ts is stale. Run ./scripts/gen-types.sh and commit."
+            diff /tmp/database.types.ts types/database.types.ts || true
+            exit 1
+          fi
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup
+
+  functions:
+    name: Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check formatting
+        run: deno fmt --check supabase/functions
+
+      - name: Lint
+        run: deno lint supabase/functions
+
+      - name: Type check
+        run: deno check supabase/functions/**/index.ts
