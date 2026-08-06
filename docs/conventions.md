@@ -28,12 +28,20 @@
 
 ## Functions
 
+**Use `security invoker` unless the function genuinely cannot work without
+definer rights.** In this schema only five functions qualify — `create_request`,
+`start_request`, `finish_request`, `cancel_request`, `restore_request` — because
+they are the only ones that write to `requests`, which no client holds a write
+grant on. Everything else operates on tables the caller already has grants and
+policies for, so invoker rights work and RLS backs up the function's own
+ownership check instead of being bypassed by it. A test pins the definer list.
+
 Every mutating function must:
 
-1. Be `security definer` — clients hold no write grant.
-2. Pin `set search_path = public, pg_temp`. Unpinned definer functions are a
-   privilege-escalation route, and `00_schema.test.sql` fails the build if one
-   appears.
+1. Pin `set search_path = public, pg_temp` (or `''` if it touches nothing).
+   Unpinned functions are a privilege-escalation route and the Supabase advisor
+   flags them; `00_schema.test.sql` fails the build if one appears — for **all**
+   functions, not just definer ones.
 3. Re-check ownership itself. Definer rights are not a licence to skip the
    check.
 4. Lock the row (`for no key update`) before validating a transition, so two
@@ -43,20 +51,34 @@ Every mutating function must:
 
 ## Views
 
-Views that must cross a tenancy boundary — joining `profiles` for a receiver
-name, or counting rows the caller cannot read — run with **definer rights**
-(`security_invoker = false`) and carry their **own** explicit predicate:
+**Every view is `security_invoker = true`.** Base-table RLS therefore applies on
+top of the view's own predicate. Each view still carries its explicit filter:
 
 ```sql
 where pv.owner_id = auth.uid()      -- provider_queue, provider_archive
 where r.receiver_id = auth.uid()    -- my_requests
 ```
 
-Removing one of those predicates removes tenancy isolation entirely. If you
-touch a view, re-read `02_rls_isolation.test.sql` first.
+but that predicate is now defence in depth rather than the entire defence. A
+definer view would make it the only boundary, and deleting one line would
+silently expose every tenant. A test asserts all four views stay invoker.
 
-Views that need no such crossing should be `security_invoker = true` so base
-table policies apply normally.
+### Crossing a tenancy boundary
+
+Two things genuinely need to read rows the caller cannot: a receiver's true
+queue position, and a provider's public queue count. Those live in the
+**`private` schema** as tiny `security definer` functions that return a single
+integer and authorise the caller themselves.
+
+`private` is not listed in `config.toml`'s `[api] schemas`, so PostgREST does
+not expose it — nothing there is reachable at `/rest/v1/rpc/`.
+
+The same helpers break RLS recursion. A policy on `providers` that reads
+`requests`, whose policy reads `providers`, is infinite recursion — Postgres
+raises `42P17` at query time, not at creation time, so it surfaces as a runtime
+outage. Definer helpers read their table without re-entering RLS, cutting the
+cycle. **Any new policy that references another RLS-protected table must go
+through a `private.` helper.**
 
 ## Ordering
 

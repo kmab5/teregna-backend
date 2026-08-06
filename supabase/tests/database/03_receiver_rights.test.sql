@@ -1,7 +1,7 @@
 -- What a receiver may and may not do, plus provider-inactive handling.
 -- Seed-independent.
 begin;
-select plan(8);
+select plan(9);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('e3000000-0000-0000-0000-000000000001', 'r-owner@test.local', '{"display_name":"RcvOwner"}'),
@@ -72,6 +72,15 @@ select throws_ok(
   $$ select public.create_request((select pid from t), '[]'::jsonb, null, 'rcv-k2') $$,
   'P0001', 'provider_inactive',
   'an inactive provider refuses new requests'
+);
+
+-- A closed shop must not erase the receiver's own history. Without the
+-- providers_requester_read policy the join in my_requests drops the row and the
+-- request silently disappears from their screen.
+select is(
+  (select count(*)::int from public.my_requests where id = (select rid from tr)),
+  1,
+  'a receiver still sees their request after the provider closes'
 );
 
 select * from finish();

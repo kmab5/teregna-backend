@@ -228,11 +228,11 @@ the Kotlin and Swift models.
 
 ## Testing
 
-`supabase/tests/database/` holds a pgTAP suite of 72 assertions:
+`supabase/tests/database/` holds a pgTAP suite of 79 assertions:
 
 | File | Covers |
 |------|--------|
-| `00_schema.test.sql` | Structure, enum values, RLS enabled, no stored `position`, every definer function pins `search_path`, clients hold no write grant on `requests` |
+| `00_schema.test.sql` | Structure, enum values, RLS enabled, no stored `position`, clients hold no write grant on `requests`, all views are `security_invoker`, the SECURITY DEFINER list is exactly the expected five (+2 ungranted), nothing definer is anon-executable, every function pins `search_path` |
 | `01_queue_lifecycle.test.sql` | The full loop, ordering, idempotency, the open-request cap, restore |
 | `02_rls_isolation.test.sql` | A rival provider sees and can do nothing |
 | `03_receiver_rights.test.sql` | Receiver cancel rights, inactive-provider handling |
@@ -250,8 +250,14 @@ Isolation failures block release. That is a hard requirement, not a preference.
 - RLS on every table holding per-user data; policies trace to `auth.uid()`.
 - No write policy on `requests` at all — absence of a permissive policy is the
   denial.
-- Every `security definer` function pins `search_path` and re-checks ownership.
-  A test enforces the first half of that mechanically.
+- **All views are `security_invoker`**, so base-table RLS applies on top of each
+  view's own filter. The filter is defence in depth, not the whole defence.
+- **Only five functions are `SECURITY DEFINER`** — the request-lifecycle RPCs
+  that must write to `requests`. Everything else runs as the caller.
+- Cross-tenancy helpers live in a **`private` schema that PostgREST does not
+  expose**, so they are unreachable over the API.
+- Every function pins `search_path` and re-checks ownership. Tests enforce all
+  of the above mechanically.
 - `service_role` never ships to a client. `analytics-export` deliberately
   forwards the **caller's** JWT rather than using it.
 - Storage writes are confined to `<bucket>/<user_id>/…` by policy.

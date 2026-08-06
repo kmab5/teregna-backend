@@ -18,7 +18,8 @@
 -- -----------------------------------------------------------------------------
 -- provider_queue — the owning provider's live queue, oldest first.
 -- -----------------------------------------------------------------------------
-create or replace view public.provider_queue
+drop view if exists public.provider_queue;
+create view public.provider_queue
 with (security_invoker = false) as
 select
   r.id,
@@ -60,7 +61,8 @@ comment on view public.provider_queue is
 -- -----------------------------------------------------------------------------
 -- provider_archive — completed and cancelled, most recent first.
 -- -----------------------------------------------------------------------------
-create or replace view public.provider_archive
+drop view if exists public.provider_archive;
+create view public.provider_archive
 with (security_invoker = false) as
 select
   r.id,
@@ -99,7 +101,8 @@ where r.status in ('completed', 'cancelled')
 -- -----------------------------------------------------------------------------
 -- my_requests — the caller's own requests, with true live position.
 -- -----------------------------------------------------------------------------
-create or replace view public.my_requests
+drop view if exists public.my_requests;
+create view public.my_requests
 with (security_invoker = false) as
 select
   r.id,
@@ -146,7 +149,8 @@ comment on view public.my_requests is
 -- provider_public — discovery. Active providers only, public columns only,
 -- plus a queue-length COUNT (never the identities behind it).
 -- -----------------------------------------------------------------------------
-create or replace view public.provider_public
+drop view if exists public.provider_public;
+create view public.provider_public
 with (security_invoker = false) as
 select
   pr.id,

@@ -65,6 +65,15 @@ database further.
 
 **Types are stale.** Run `npm run types` and commit.
 
+**Supabase advisor reports `security_definer_view` or `function_search_path_mutable`.**
+Something regressed migration `...091000_advisor_hardening`. Run `npm test` —
+`00_schema.test.sql` asserts each of those properties and will name the object.
+
+**`42P17 infinite recursion detected in policy`.** A policy references another
+RLS-protected table directly. Route it through a `private.` definer helper (see
+`docs/conventions.md` → Views → Crossing a tenancy boundary). This fails at
+query time, not migration time, so it can reach production green.
+
 **Realtime stopped updating.** Confirm `requests` is still in the
 `supabase_realtime` publication and `replica identity` is `full`:
 
