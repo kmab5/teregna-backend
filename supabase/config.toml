@@ -1,0 +1,127 @@
+# Teregna backend — Supabase configuration
+#
+# This repo is connected to Supabase via the GitHub integration.
+# Working directory in the Supabase dashboard must be "." (supabase/ is at repo root).
+#
+# On merge to the production branch Supabase deploys:
+#   - new migrations in supabase/migrations
+#   - Edge Functions declared in [functions.*]
+#   - Storage buckets declared in [storage.buckets.*]
+# API / Auth settings and seed.sql are NOT deployed to production; they apply
+# locally and to preview branches only.
+
+project_id = "teregna"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+# Local email testing only.
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "5MiB"
+
+# --- Storage buckets (deployed to production by the GitHub integration) ---
+
+[storage.buckets.avatars]
+public = true
+file_size_limit = "2MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
+[storage.buckets.provider-covers]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
+[storage.buckets.item-images]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
+# --- Auth (local + preview branches; production auth is set in the dashboard) ---
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = true
+max_frequency = "1m"
+otp_length = 6
+otp_expiry = 3600
+
+[auth.sessions]
+timebox = "720h"
+inactivity_timeout = "336h"
+
+# Phone/OTP is a likely channel for the Ethiopian market. Disabled until a
+# provider is configured; enable per-environment with secrets.
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+
+# --- Edge Functions (deployed to production by the GitHub integration) ---
+
+[functions.analytics-export]
+enabled = true
+verify_jwt = true
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+# --- Persistent environment overrides ---
+# Fill in project_id after creating the branches, then uncomment.
+#
+# [remotes.staging]
+# project_id = "<staging-branch-project-ref>"
+#
+# [remotes.staging.db.seed]
+# enabled = true
+# sql_paths = ["./seed.sql"]
+#
+# [remotes.production]
+# project_id = "<production-project-ref>"
+#
+# [remotes.production.db.seed]
+# enabled = false
