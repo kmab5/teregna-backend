@@ -12,7 +12,7 @@
 ## Normal deploy
 
 1. Branch from `develop`, write the migration, add a pgTAP test.
-2. `./scripts/verify.sh` locally.
+2. `npm run verify` locally.
 3. Open the PR. Supabase creates a preview branch and applies migrations; CI
    runs tests, lint, drift, and type checks.
 4. Both **CI** and **Supabase Preview** must be green.
@@ -56,14 +56,14 @@ by a later-timestamped file. Fix and push; the branch redeploys.
 
 **Migration conflict after merge.** Two branches added migrations with
 interleaved timestamps and the later one now runs first. Rename the file to a
-timestamp after the merged one and re-verify with `supabase db reset`.
+timestamp after the merged one and re-verify with `npm run reset`.
 
 **CI reports schema drift.** Someone changed the database through the dashboard
-or Studio. Capture it with `supabase db diff --schema public`, turn the output
+or Studio. Capture it with `npx supabase db diff --schema public`, turn the output
 into a proper migration, and commit it. Do not "fix" drift by editing the
 database further.
 
-**Types are stale.** Run `./scripts/gen-types.sh` and commit.
+**Types are stale.** Run `npm run types` and commit.
 
 **Realtime stopped updating.** Confirm `requests` is still in the
 `supabase_realtime` publication and `replica identity` is `full`:
@@ -80,7 +80,7 @@ than showing wrong data.
 ## Incident: suspected data leak between tenants
 
 1. Run the isolation suite against the affected environment immediately:
-   `supabase test db` (file `02_rls_isolation.test.sql`).
+   `npm test` (file `02_rls_isolation.test.sql`).
 2. Check whether any view lost its tenancy predicate:
    ```sql
    select definition from pg_views

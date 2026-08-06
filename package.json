@@ -1,0 +1,30 @@
+{
+  "name": "teregna-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Supabase backend for Teregna - schema, RLS, RPC, realtime and edge functions.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "bootstrap": "node scripts/bootstrap.mjs",
+    "start": "node scripts/sb.mjs start",
+    "stop": "node scripts/sb.mjs stop",
+    "status": "node scripts/sb.mjs status",
+    "reset": "node scripts/reset.mjs",
+    "test": "node scripts/test.mjs",
+    "lint": "node scripts/sb.mjs db lint --level warning",
+    "types": "node scripts/gen-types.mjs",
+    "migration:new": "node scripts/new-migration.mjs",
+    "verify": "node scripts/verify.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "functions:deploy": "node scripts/sb.mjs functions deploy",
+    "link": "node scripts/sb.mjs link",
+    "push": "node scripts/sb.mjs db push",
+    "functions:serve": "node scripts/sb.mjs functions serve"
+  },
+  "devDependencies": {
+    "supabase": "^2.0.0"
+  }
+}

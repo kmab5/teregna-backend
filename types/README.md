@@ -3,7 +3,7 @@
 `database.types.ts` is generated from the schema — do not edit it by hand.
 
 ```bash
-./scripts/gen-types.sh
+npm run types
 ```
 
 Run this after every schema migration and commit the result. CI fails if it is

@@ -25,16 +25,24 @@ functions that lock the row, re-check ownership, and validate the transition.
 
 ## Quick start
 
-Requires [Docker](https://docs.docker.com/get-docker/) and the
-[Supabase CLI](https://supabase.com/docs/guides/local-development).
+You need **Node.js 20+** and a **Docker-compatible runtime**
+([Docker Desktop](https://docs.docker.com/get-docker/), Rancher Desktop, or
+Podman). You do **not** need bash, and you do **not** need to install the
+Supabase CLI separately — it is pinned as a dev dependency and `npm install`
+fetches it.
 
-```bash
-git clone <this-repo> && cd teregna-backend
-./scripts/bootstrap.sh
+```
+git clone <this-repo>
+cd teregna-backend
+npm install
+npm run bootstrap
 ```
 
-That starts local Supabase, applies every migration, and loads sample data.
-Studio runs at <http://localhost:54323>.
+Every command is a plain Node script, so this works identically in PowerShell,
+Command Prompt, Terminal, or any shell.
+
+`npm run bootstrap` starts the local stack, applies every migration, and loads
+sample data. Studio runs at <http://localhost:54323>.
 
 Seeded logins — password `teregna123`:
 
@@ -45,11 +53,42 @@ Seeded logins — password `teregna123`:
 | `sara@teregna.test`  | Receiver — active and past requests |
 | `dawit@teregna.test` | Receiver |
 
-Before opening a PR:
+### Commands
 
-```bash
-./scripts/verify.sh    # reset + tests + lint + drift check + function lint
-```
+| Command | What it does |
+|---------|--------------|
+| `npm run bootstrap` | First-time setup: start the stack, migrate, seed |
+| `npm start` / `npm run stop` | Start or stop the local stack |
+| `npm run status` | Show local URLs and keys |
+| `npm run reset` | Rebuild the database from migrations + seed |
+| `npm test` | Run the pgTAP suite |
+| `npm run lint` | Lint the schema |
+| `npm run types` | Regenerate `types/database.types.ts` |
+| `npm run migration:new -- add_provider_hours` | Create a timestamped migration |
+| `npm run verify` | **Everything CI runs.** Use before opening a PR |
+
+Anything not wrapped above can be run directly:
+`node scripts/sb.mjs <any supabase command>`.
+
+### Working without Docker
+
+Local development needs Docker because the stack runs in containers. If you
+can't run it, you can still work entirely through Supabase's hosted
+infrastructure:
+
+1. Write your migration by hand into `supabase/migrations/` using the naming
+   convention `YYYYMMDDHHMMSS_description.sql`.
+2. Push the branch and open a PR. The GitHub integration spins up a **preview
+   branch** and applies your migrations there — this is a real Postgres, so a
+   broken migration fails visibly on the PR.
+3. Inspect the result in the dashboard for that preview branch, and use its SQL
+   editor to poke at the schema.
+4. Merge when the **Supabase Preview** check is green.
+
+The trade-offs are real: you lose `npm test` (pgTAP runs locally), the drift
+check, and type generation — all of which still run in CI, just later in the
+loop. Docker gives you a much tighter feedback cycle, so install it when you
+can.
 
 ---
 
@@ -63,7 +102,8 @@ supabase/
 ├── functions/               # Deno Edge Functions
 └── tests/database/          # pgTAP suite (72 assertions)
 .github/workflows/           # CI + Supabase preview-branch status gate
-scripts/                     # bootstrap, reset, test, gen-types, verify
+scripts/                     # cross-platform Node scripts (no bash needed)
+package.json                 # pins the Supabase CLI; npm scripts wrap everything
 types/database.types.ts      # generated; CI fails if stale
 docs/                        # conventions, error codes, runbook
 ```
@@ -170,17 +210,17 @@ Per-environment overrides go in the commented `[remotes.*]` blocks in
 
 Append-only. Never edit a migration that has been merged — write a new one.
 
-```bash
-./scripts/new-migration.sh add_provider_hours
+```
+npm run migration:new -- add_provider_hours
 # edit the generated file
-./scripts/verify.sh
+npm run verify
 ```
 
 Guard DDL with `if not exists` / `drop ... if exists` so reruns are safe. CI
 rebuilds the database from zero on every PR, so a migration that only works
 against an already-migrated database will fail there.
 
-After any schema change, run `./scripts/gen-types.sh` and commit
+After any schema change, run `npm run types` and commit
 `types/database.types.ts` — CI fails if it is stale — then mirror the change in
 the Kotlin and Swift models.
 
@@ -197,8 +237,8 @@ the Kotlin and Swift models.
 | `02_rls_isolation.test.sql` | A rival provider sees and can do nothing |
 | `03_receiver_rights.test.sql` | Receiver cancel rights, inactive-provider handling |
 
-```bash
-./scripts/test.sh
+```
+npm test
 ```
 
 Isolation failures block release. That is a hard requirement, not a preference.

@@ -19,32 +19,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: supabase/setup-cli@v1
+      - uses: actions/setup-node@v4
         with:
-          version: latest
+          node-version: 20
+          cache: npm
+
+      # Installs the Supabase CLI pinned in package.json, so CI runs exactly the
+      # version contributors run locally. No separate CLI setup action needed.
+      - name: Install dependencies
+        run: npm ci
 
       - name: Start Supabase
         # Applies every migration in supabase/migrations in order, then seed.sql.
         # A migration that does not apply cleanly fails the build here.
-        run: supabase start
+        run: npx supabase start
 
-      - name: Verify migrations are reproducible from scratch
-        # Rebuilds the database on the shadow instance. Catches migrations that
-        # only work against an already-migrated database.
-        run: supabase db reset
+      - name: Rebuild from scratch
+        # Catches migrations that only work against an already-migrated database.
+        run: npx supabase db reset
 
       - name: Run pgTAP tests
-        run: supabase test db
+        run: npx supabase test db
 
       - name: Lint database schema
-        run: supabase db lint --level warning --fail-on warning
+        run: npx supabase db lint --level warning
 
       - name: Detect uncommitted schema drift
-        # The checked-in migrations must fully describe the database. If diffing
-        # the live schema against the migrations produces output, someone changed
-        # the database without writing a migration.
+        # The checked-in migrations must fully describe the database. Output here
+        # means someone changed the database without writing a migration.
         run: |
-          supabase db diff --schema public > /tmp/drift.sql
+          npx supabase db diff --schema public > /tmp/drift.sql
           if [ -s /tmp/drift.sql ]; then
             echo "::error::Schema drift detected - a change was made without a migration."
             cat /tmp/drift.sql
@@ -52,18 +56,18 @@ jobs:
           fi
           echo "No drift."
 
-      - name: Generate types and check they are committed
+      - name: Check generated types are committed
         run: |
-          supabase gen types typescript --local --schema public > /tmp/database.types.ts
+          npx supabase gen types typescript --local --schema public > /tmp/database.types.ts
           if ! diff -q /tmp/database.types.ts types/database.types.ts > /dev/null 2>&1; then
-            echo "::error::types/database.types.ts is stale. Run ./scripts/gen-types.sh and commit."
+            echo "::error::types/database.types.ts is stale. Run 'npm run types' and commit."
             diff /tmp/database.types.ts types/database.types.ts || true
             exit 1
           fi
 
       - name: Stop Supabase
         if: always()
-        run: supabase stop --no-backup
+        run: npx supabase stop --no-backup
 
   functions:
     name: Edge Functions

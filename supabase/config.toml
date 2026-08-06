@@ -42,8 +42,8 @@ enabled = true
 enabled = true
 port = 54323
 
-# Local email testing only.
-[inbucket]
+# Local email testing only. Catches auth emails so you can click the links.
+[local_smtp]
 enabled = true
 port = 54324
 

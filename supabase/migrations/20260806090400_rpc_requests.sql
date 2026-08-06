@@ -219,14 +219,14 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_req uuid;
   v_out public.requests;
 begin
   if auth.uid() is null then
     raise exception 'unauthenticated' using errcode = 'P0001';
   end if;
 
-  select r.id into v_req
+  -- Lock the row first; either party may cancel, so the predicate covers both.
+  perform 1
     from public.requests r
    where r.id = p_request_id
      and (
