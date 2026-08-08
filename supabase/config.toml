@@ -73,7 +73,20 @@ allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://localhost:3000"]
+# Every URL the auth server may redirect back to. A URL missing from this list
+# sends the person to a Supabase error page instead of the app - the single most
+# common cause of "Google sign-in does nothing".
+#
+# Production and preview domains are configured in the DASHBOARD, not here:
+# this block applies to local and preview branches only.
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "http://localhost:3000/auth/callback",
+  "https://teregna-web.vercel.app",
+  "https://teregna-web.vercel.app/auth/callback",
+  # Vercel preview deployments get a generated subdomain each time.
+  "https://*-teregna-web.vercel.app/auth/callback",
+]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
@@ -88,6 +101,22 @@ secure_password_change = true
 max_frequency = "1m"
 otp_length = 6
 otp_expiry = 3600
+
+# --- Google OAuth ---
+# Secrets are read from the environment, never committed. Locally, put them in
+# supabase/.env (gitignored):
+#   GOOGLE_CLIENT_ID=...
+#   GOOGLE_SECRET=...
+# In production these live in the dashboard under Authentication > Providers.
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_SECRET)"
+# Leave empty to use Supabase's own callback:
+#   https://<project-ref>.supabase.co/auth/v1/callback
+# That is the URL Google Cloud Console needs as an Authorised redirect URI.
+redirect_uri = ""
+skip_nonce_check = false
 
 [auth.sessions]
 timebox = "720h"

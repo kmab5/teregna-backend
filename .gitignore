@@ -1,4 +1,4 @@
-# Node
+npm run deploy -- --project-ref# Node
 node_modules/
 npm-debug.log*
 

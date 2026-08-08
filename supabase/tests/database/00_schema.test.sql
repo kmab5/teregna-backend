@@ -110,7 +110,7 @@ select set_eq($$
   where n.nspname = 'public' and p.prosecdef
 $$, array[
   'create_request','start_request','finish_request','cancel_request','restore_request',
-  'handle_new_user','anonymize_profile'
+  'handle_new_user','anonymize_profile','delete_my_account'
 ], 'only the expected functions are SECURITY DEFINER in public');
 
 -- Nothing SECURITY DEFINER may be reachable by an unauthenticated caller.
